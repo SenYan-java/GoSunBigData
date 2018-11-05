@@ -4,12 +4,8 @@ import com.hzgc.cluster.spark.util.PropertiesUtil;
 import com.hzgc.common.collect.bean.FaceObject;
 import com.hzgc.common.service.facedynrepo.FaceTable;
 import com.hzgc.common.util.es.ElasticSearchHelper;
-import com.hzgc.jniface.FaceAttribute;
-import org.apache.log4j.Logger;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.rest.RestStatus;
 
 import java.io.Serializable;
 import java.util.HashMap;

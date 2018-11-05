@@ -11,6 +11,12 @@
 
     <artifactId>peoman-client</artifactId>
     <version>1.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>com.hzgc.common</groupId>
+            <artifactId>common-util</artifactId>
+        </dependency>
+    </dependencies>
 
 
 </project>
