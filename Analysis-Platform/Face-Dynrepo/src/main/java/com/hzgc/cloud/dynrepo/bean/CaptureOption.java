@@ -1,20 +1,24 @@
 package com.hzgc.cloud.dynrepo.bean;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hzgc.common.service.faceattribute.bean.Attribute;
+import com.hzgc.common.service.search.bean.Device;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 
 @Data
 public class CaptureOption implements Serializable {
     //搜索的设备IPC列表
-    private List<Device> deviceIpcs;
-    // ipc mapping device id
-    @JsonIgnore
-    private Map<String, Device> ipcMapping;
+    private List<Device> devices;
+    //社区
+    private List<Device> community;
+    //区域
+    private List<Device> region;
+    //市区
+    private List<Device> city;
+    //省份
+    private List<Device> province;
     //开始日期,格式：xxxx-xx-xx xx:xx:xx
     private String startTime;
     //截止日期,格式：xxxx-xx-xx xx:xx:xx

@@ -2,6 +2,7 @@ package com.hzgc.cloud.dynperson.bean;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hzgc.common.service.personattribute.bean.PersonAttribute;
+import com.hzgc.common.service.search.bean.Device;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
@@ -46,9 +47,20 @@ public class CaptureOption implements Serializable {
     @ApiModelProperty(value ="指定搜索设备ID列表")
     private List<Device> devices;
 
-    // ipc mapping device id
-    @JsonIgnore
-    private Map<String, Device> ipcMapping;
+    //社区
+    @ApiModelProperty(value ="指定搜索社区列表")
+    private List<Device> community;
 
+    //区域
+    @ApiModelProperty(value ="指定搜索区域列表")
+    private List<Device> region;
+
+    //市区
+    @ApiModelProperty(value ="指定搜索市区列表")
+    private List<Device> city;
+
+    //省份
+    @ApiModelProperty(value ="指定搜索省份列表")
+    private List<Device> province;
 
 }

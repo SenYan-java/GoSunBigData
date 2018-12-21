@@ -1,5 +1,6 @@
 package com.hzgc.cloud.dyncar.dao;
 
+import com.hzgc.common.service.search.util.DeviceToIpcs;
 import com.hzgc.common.service.facedynrepo.VehicleTable;
 import com.hzgc.common.util.es.ElasticSearchHelper;
 import com.hzgc.seemmo.bean.carbean.CarData;
@@ -30,23 +31,10 @@ public class ElasticSearchDao {
         this.esClient = ElasticSearchHelper.getEsClient(clusterName, esHost, Integer.parseInt(esPort));
     }
 
-    //返回查询结果
+    //根据多个ipcid进行查询总共的
     public SearchResponse getCaptureHistory(CaptureOption option, String sortParam) {
         BoolQueryBuilder queryBuilder = createBoolQueryBuilder(option);
-
-        SearchRequestBuilder requestBuilder = createSearchRequestBuilder()
-                .setQuery(queryBuilder)
-                .setFrom(option.getStart())
-                .setSize(option.getLimit())
-                .addSort(VehicleTable.TIMESTAMP,
-                        Objects.equals(sortParam, EsSearchParam.DESC) ? SortOrder.DESC : SortOrder.ASC);
-        return requestBuilder.get();
-    }
-
-    //根据多个ipcid进行查询总共的
-    public SearchResponse getCaptureHistory(CaptureOption option, List <String> ipcList, String sortParam) {
-        BoolQueryBuilder queryBuilder = createBoolQueryBuilder(option);
-        setDeviceIdList(queryBuilder, ipcList);
+        setArea(queryBuilder, option);
         setPlate(queryBuilder,option);
         SearchRequestBuilder requestBuilder = createSearchRequestBuilder()
                 .setQuery(queryBuilder)
@@ -57,6 +45,7 @@ public class ElasticSearchDao {
         return requestBuilder.get();
     }
 
+    //过滤商标和车牌
     private void setPlate(BoolQueryBuilder queryBuilder, CaptureOption option) {
         if (null != option.getPlate_licence() && option.getPlate_licence().length() > 0 &&
                 null != option.getBrand_name() && option.getBrand_name().length() > 0) {
@@ -69,19 +58,6 @@ public class ElasticSearchDao {
         if (null != option.getBrand_name() && option.getBrand_name().length() > 0) {
             queryBuilder.must(QueryBuilders.queryStringQuery(VehicleTable.BRAND_NAME + ":*" + option.getBrand_name() + "*"));
         }
-    }
-
-    //根据单个ipcid进行查询
-    public SearchResponse getCaptureHistory(CaptureOption option, String ipc, String sortParam) {
-        BoolQueryBuilder queryBuilder = createBoolQueryBuilder(option);
-        setDeviceId(queryBuilder, ipc);
-        SearchRequestBuilder requestBuilder = createSearchRequestBuilder()
-                .setQuery(queryBuilder)
-                .setFrom(option.getStart())
-                .setSize(option.getLimit())
-                .addSort(VehicleTable.TIMESTAMP,
-                        Objects.equals(sortParam, EsSearchParam.DESC) ? SortOrder.DESC : SortOrder.ASC);
-        return requestBuilder.get();
     }
 
     //设置index和type
@@ -113,21 +89,48 @@ public class ElasticSearchDao {
         totalBQ.must(QueryBuilders.rangeQuery(VehicleTable.TIMESTAMP).gte(startTime).lte(endTime));
     }
 
-    //多个ipcid查询
-    private void setDeviceIdList(BoolQueryBuilder totalBQ, List <String> deviceId) {
-        // 设备ID 的的boolQueryBuilder
-        BoolQueryBuilder devicdIdBQ = QueryBuilders.boolQuery();
-        for (Object t : deviceId) {
-            devicdIdBQ.should(QueryBuilders.matchPhraseQuery(VehicleTable.IPCID, t));
+    //过滤省,市,区,区域,设备
+    private void setArea(BoolQueryBuilder totalBQ, CaptureOption option) {
+        BoolQueryBuilder areaBQ = QueryBuilders.boolQuery();
+        if (option.getDevices().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getDevices());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(VehicleTable.IPCID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
         }
-        totalBQ.must(devicdIdBQ);
-    }
-
-    //单个ipcid查询
-    private void setDeviceId(BoolQueryBuilder totalBQ, String ipc) {
-        BoolQueryBuilder deviceIdBQ = QueryBuilders.boolQuery();
-        deviceIdBQ.should(QueryBuilders.matchPhraseQuery(VehicleTable.IPCID, ipc));
-        totalBQ.must(deviceIdBQ);
+        if (option.getCommunity().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(VehicleTable.COMMUNITYID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
+        }
+        if (option.getRegion().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(VehicleTable.REGIONID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
+        }
+        if (option.getCity().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(VehicleTable.CITYID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
+        }
+        if (option.getProvince().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(VehicleTable.PROVINCEID, t));
+            }
+        }
+        totalBQ.must(areaBQ);
     }
 
     //车辆属性过滤
@@ -137,12 +140,6 @@ public class ElasticSearchDao {
         if (null != attributes && attributes.size() > 0) {
             for (VehicleAttribute attribute : attributes) {
                 String attributeName = attribute.getAttributeName();
-                //                if (attributeName.equals(CarData.VEHICLE_OBJECT_TYPE) || attributeName.equals(CarData.MISTAKE_CODE)
-//                        || attributeName.equals(CarData.SUNROOF_CODE) || attributeName.equals(CarData.BRAND_NAME)
-//                        || attributeName.equals(CarData.PLATE_LICENCE) || attributeName.equals(CarData.SPARETIRE_CODE)
-//                        || attributeName.equals(CarData.MARKER_CODE)) {
-//                    continue;
-//                }
                 if (CarData.VEHICLE_COLOR.equals(attributeName) || CarData.VEHICLE_TYPE.equals(attributeName)
                         || CarData.PLATE_DESTAIN_CODE.equals(attributeName) || CarData.RACK_CODE.equals(attributeName)) {
                     List <String> attributeValues = attribute.getAttributeCodes();

@@ -7,13 +7,11 @@ import com.hzgc.common.service.api.service.InnerService;
 import com.hzgc.common.service.api.service.PlatformService;
 import com.hzgc.common.service.facedynrepo.FaceTable;
 import com.hzgc.common.service.response.ResponseResult;
-import com.hzgc.common.util.json.JacksonUtil;
 import com.hzgc.cloud.dynrepo.bean.CaptureOption;
 import com.hzgc.cloud.dynrepo.bean.CapturedPicture;
 import com.hzgc.cloud.dynrepo.bean.SingleCaptureResult;
 import com.hzgc.cloud.dynrepo.dao.ElasticSearchDao;
 import com.hzgc.cloud.dynrepo.dao.EsSearchParam;
-import com.hzgc.cloud.dynrepo.util.DeviceToIpcs;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.SearchHit;
@@ -42,88 +40,14 @@ public class CaptureHistoryService {
     public ResponseResult<List<SingleCaptureResult>> getCaptureHistory(CaptureOption option) {
         String sortParam = EsSearchParam.DESC;
         log.info("The current query don't needs to be grouped by ipcid");
-        return getCaptureHistory(option, DeviceToIpcs.getIpcs(option.getDeviceIpcs()), sortParam);
+        return getCaptureHistory(option, sortParam);
     }
 
-    private List<SingleCaptureResult> getDefaultCaptureHistory(CaptureOption option, String sortParam) {
-        List<SingleCaptureResult> results = new ArrayList<>();
-        SingleCaptureResult singleResult = new SingleCaptureResult();
-        SearchResponse searchResponse = elasticSearchDao.getCaptureHistory(option, sortParam);
-        SearchHits searchHits = searchResponse.getHits();
-        SearchHit[] hits = searchHits.getHits();
-        int totallCount = (int) searchHits.getTotalHits();
-        List<CapturedPicture> persons = new ArrayList<>();
-        CapturedPicture capturePicture;
-        if (hits.length > 0) {
-            for (SearchHit hit : hits) {
-                capturePicture = new CapturedPicture();
-                String sabsolutepath = (String) hit.getSource().get(FaceTable.SABSOLUTEPATH);
-                String babsolutepath = (String) hit.getSource().get(FaceTable.BABSOLUTEPATH);
-                String ipcid = (String) hit.getSource().get(FaceTable.IPCID);
-                String timestamp = (String) hit.getSource().get(FaceTable.TIMESTAMP);
-                String hostname = (String) hit.getSource().get(FaceTable.HOSTNAME);
-                UrlInfo urlInfo = innerService.hostName2Ip(hostname);
-                capturePicture.setSabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), sabsolutepath));
-                capturePicture.setBabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), babsolutepath));
-                capturePicture.setDeviceId(ipcid);
-                capturePicture.setTimeStamp(timestamp);
-                persons.add(capturePicture);
-            }
-        }
-        singleResult.setTotal(totallCount);
-        singleResult.setPictures(persons);
-        results.add(singleResult);
-        return results;
-    }
-
-    private List<SingleCaptureResult> getCaptureHistory(CaptureOption option, String sortParam) {
-        List<SingleCaptureResult> results = new ArrayList<>();
-        for (String ipcId : DeviceToIpcs.getIpcs(option.getDeviceIpcs())) {
-            SingleCaptureResult singleResult = new SingleCaptureResult();
-            List<CapturedPicture> capturedPictureList = new ArrayList<>();
-            SearchResponse searchResponse = elasticSearchDao.getCaptureHistory(option, ipcId, sortParam);
-            SearchHits searchHits = searchResponse.getHits();
-
-            SearchHit[] hits = searchHits.getHits();
-            CapturedPicture capturePicture;
-            if (hits.length > 0) {
-                for (SearchHit hit : hits) {
-                    capturePicture = new CapturedPicture();
-                    String sabsolutepath = (String) hit.getSource().get(FaceTable.SABSOLUTEPATH);
-                    String babsolutepath = (String) hit.getSource().get(FaceTable.BABSOLUTEPATH);
-                    String ipc = (String) hit.getSource().get(FaceTable.IPCID);
-                    String timestamp = (String) hit.getSource().get(FaceTable.TIMESTAMP);
-                    String hostname = (String) hit.getSource().get(FaceTable.HOSTNAME);
-                    UrlInfo urlInfo = innerService.hostName2Ip(hostname);
-                    capturePicture.setSabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), sabsolutepath));
-                    capturePicture.setBabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), babsolutepath));
-                    capturePicture.setDeviceId(option.getIpcMapping().get(ipc).getIpc());
-                    capturePicture.setLocation(getLocation(ipc));
-                    capturePicture.setDeviceName(option.getIpcMapping().get(ipc).getDeviceName());
-                    capturePicture.setTimeStamp(timestamp);
-                    if (ipcId.equals(ipc)) {
-                        capturedPictureList.add(capturePicture);
-                    }
-                }
-            } else {
-                capturePicture = new CapturedPicture();
-                capturedPictureList.add(capturePicture);
-            }
-            singleResult.setTotal((int) searchHits.getTotalHits());
-            singleResult.setDeviceId(ipcId);
-            singleResult.setDeviceName(option.getIpcMapping().get(ipcId).getDeviceName());
-            singleResult.setPictures(capturedPictureList);
-            results.add(singleResult);
-        }
-        log.info("Capture history results:" + JacksonUtil.toJson(results));
-        return results;
-    }
-
-    private ResponseResult<List<SingleCaptureResult>> getCaptureHistory(CaptureOption option, List<String> deviceIds, String sortParam) {
+    private ResponseResult<List<SingleCaptureResult>> getCaptureHistory(CaptureOption option, String sortParam) {
         List<SingleCaptureResult> results = new ArrayList<>();
         SingleCaptureResult singleResult = new SingleCaptureResult();
         List<CapturedPicture> captureList = new ArrayList<>();
-        SearchResponse searchResponse = elasticSearchDao.getCaptureHistory(option, deviceIds, sortParam);
+        SearchResponse searchResponse = elasticSearchDao.getCaptureHistory(option, sortParam);
         SearchHits searchHits = searchResponse.getHits();
         SearchHit[] hits = searchHits.getHits();
         CapturedPicture capturePicture;
@@ -155,28 +79,26 @@ public class CaptureHistoryService {
                 capturePicture.setSharpness(sharpness);
                 capturePicture.setSabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), sabsolutepath));
                 capturePicture.setBabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), babsolutepath));
-                capturePicture.setLocation(getLocation(ipc));
+                CameraQueryDTO cameraQueryDTO = getLocation(ipc);
+                capturePicture.setLocation(cameraQueryDTO.getRegion() + cameraQueryDTO.getCommunity());
                 capturePicture.setTimeStamp(timestamp);
                 capturePicture.setDeviceId(ipc);
-                capturePicture.setDeviceName(option.getIpcMapping().get(ipc).getDeviceName());
+                capturePicture.setDeviceName(cameraQueryDTO.getCameraName());
                 captureList.add(capturePicture);
             }
         }
         singleResult.setTotal((int) searchHits.getTotalHits());
         singleResult.setPictures(captureList);
-        singleResult.setDeviceId(DeviceToIpcs.getIpcs(option.getDeviceIpcs()).get(0));
-        singleResult.setDeviceName(option.getIpcMapping().get(option.getDeviceIpcs().get(0).getIpc()).getDeviceName());
         results.add(singleResult);
 
         return ResponseResult.init(results,(int) searchHits.getTotalHits());
     }
 
-    private String getLocation(String ipc) {
+    private CameraQueryDTO getLocation(String ipc) {
         //查询相机位置
         ArrayList<String> list = new ArrayList<>();
         list.add(ipc);
         Map<String, CameraQueryDTO> cameraInfoByBatchIpc = platformService.getCameraInfoByBatchIpc(list);
-        CameraQueryDTO cameraQueryDTO = cameraInfoByBatchIpc.get(ipc);
-        return cameraQueryDTO.getRegion() + cameraQueryDTO.getCommunity();
+        return cameraInfoByBatchIpc.get(ipc);
     }
 }

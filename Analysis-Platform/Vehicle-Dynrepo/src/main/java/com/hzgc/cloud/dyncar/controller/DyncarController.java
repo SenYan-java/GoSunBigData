@@ -5,10 +5,10 @@ import com.hzgc.common.service.response.ResponseResult;
 import com.hzgc.common.service.rest.BigDataPath;
 import com.hzgc.common.util.json.JacksonUtil;
 import com.hzgc.cloud.dyncar.bean.CaptureOption;
-import com.hzgc.cloud.dyncar.bean.Device;
+import com.hzgc.common.service.search.bean.Device;
 import com.hzgc.cloud.dyncar.bean.SearchResult;
 import com.hzgc.cloud.dyncar.service.CaptureHistoryService;
-import com.hzgc.cloud.dyncar.util.DeviceToIpcs;
+import com.hzgc.common.service.search.util.DeviceToIpcs;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
@@ -47,12 +47,14 @@ public class DyncarController {
             log.error("Start query vehicle capture history, capture option is null");
             return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT);
         }
-        if (!(captureOption.getDevices() != null && captureOption.getDevices().size() > 0)) {
-            log.info("Device id is null,please set device id");
-            return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT,"当前小区没有订阅摄相机");
+        if ((null == captureOption.getDevices() || captureOption.getDevices().size() <= 0) &&
+                (null == captureOption.getCommunity() || captureOption.getCommunity().size() <= 0) &&
+                (null == captureOption.getRegion() || captureOption.getRegion().size() <= 0) &&
+                (null == captureOption.getCity() || captureOption.getCity().size() <= 0) &&
+                (null == captureOption.getProvince() || captureOption.getProvince().size() <= 0)) {
+            log.info("Query vehilce history, but devices or communityid or regionid or cityid or provinceid is null");
+            return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT,"查询条件有误");
         }
-        Map <String, Device> ipcMapping = DeviceToIpcs.getIpcMapping(captureOption.getDevices());
-        captureOption.setIpcMapping(ipcMapping);
         log.info("Start query vehicle capture history, search option is:" + JacksonUtil.toJson(captureOption));
         SearchResult searchResult = captureHistoryService.getCaptureHistory(captureOption);
         return ResponseResult.init(searchResult);

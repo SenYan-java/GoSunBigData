@@ -64,5 +64,13 @@ public class VehicleTable implements Serializable{
     public static final String SUNROOF_CODE = "sunroof_code";
     //车辆类型
     public static final String VEHICLE_TYPE = "vehicle_type";
+    //省份
+    public static final String PROVINCEID = "provinceid";
+    //城市
+    public static final String CITYID = "cityid";
+    //区域
+    public static final String REGIONID = "regionid";
+    //社区
+    public static final String COMMUNITYID = "communityid";
 
 }

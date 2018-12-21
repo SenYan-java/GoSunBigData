@@ -10,7 +10,6 @@ import com.hzgc.cloud.dynrepo.bean.*;
 import com.hzgc.cloud.dynrepo.service.CaptureHistoryService;
 import com.hzgc.cloud.dynrepo.service.CaptureSearchService;
 import com.hzgc.cloud.dynrepo.service.CaptureServiceHelper;
-import com.hzgc.cloud.dynrepo.util.DeviceToIpcs;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
@@ -69,18 +68,16 @@ public class CaptureSearchController {
             log.error("Start search picture, but threshold is error");
             return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT);
         }
-        Map<String, Device> ipcMapping = DeviceToIpcs.getIpcMapping(searchOption.getDeviceIpcs());
-        searchOption.setIpcMapping(ipcMapping);
-        if (searchOption.getDeviceIpcs() == null
-                || searchOption.getDeviceIpcs().size() <= 0
-                || searchOption.getDeviceIpcs().get(0) == null) {
-            log.error("Start search picture, but deviceIpcs option is error");
-            return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT);
+        if ((null == searchOption.getDevices() || searchOption.getDevices().size() <= 0) &&
+                (null == searchOption.getCommunity() || searchOption.getCommunity().size() <= 0) &&
+                (null == searchOption.getRegion() || searchOption.getRegion().size() <= 0) &&
+                (null == searchOption.getCity() || searchOption.getCity().size() <= 0) &&
+                (null == searchOption.getProvince() || searchOption.getProvince().size() <= 0)) {
+            log.info("Query vehilce history, but devices or communityid or regionid or cityid or provinceid is null");
+            return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT,"查询条件有误");
         }
-        log.info("Start search picture, set search id");
-        String searchId = UuidUtil.getUuid();
         log.info("Start search picture, search option is:" + JacksonUtil.toJson(searchOption));
-        searchResult = captureSearchService.searchPicture2(searchOption, searchId);
+        searchResult = captureSearchService.searchPicture2(searchOption, UuidUtil.getUuid());
         return ResponseResult.init(searchResult);
     }
 
@@ -121,9 +118,13 @@ public class CaptureSearchController {
             return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT);
         }
 
-        if (captureOption.getDeviceIpcs() != null && captureOption.getDeviceIpcs().size() > 0) {
-            Map <String, Device> ipcMapping = DeviceToIpcs.getIpcMapping(captureOption.getDeviceIpcs());
-            captureOption.setIpcMapping(ipcMapping);
+        if ((null == captureOption.getDevices() || captureOption.getDevices().size() <= 0) &&
+                (null == captureOption.getCommunity() || captureOption.getCommunity().size() <= 0) &&
+                (null == captureOption.getRegion() || captureOption.getRegion().size() <= 0) &&
+                (null == captureOption.getCity() || captureOption.getCity().size() <= 0) &&
+                (null == captureOption.getProvince() || captureOption.getProvince().size() <= 0)) {
+            log.info("Query vehilce history, but devices or communityid or regionid or cityid or provinceid is null");
+            return ResponseResult.error(RestErrorCode.ILLEGAL_ARGUMENT,"查询条件有误");
         }
         log.info("Start query capture history, search option is:" + JacksonUtil.toJson(captureOption));
         return captureHistoryService.getCaptureHistory(captureOption);

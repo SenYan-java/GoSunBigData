@@ -1,5 +1,6 @@
 package com.hzgc.cloud.dynrepo.dao;
 
+import com.hzgc.common.service.search.util.DeviceToIpcs;
 import com.hzgc.common.util.es.ElasticSearchHelper;
 import com.hzgc.common.service.faceattribute.bean.Attribute;
 import com.hzgc.common.service.faceattribute.bean.AttributeValue;
@@ -30,34 +31,9 @@ public class ElasticSearchDao {
         this.esClient = ElasticSearchHelper.getEsClient(clusterName, esHost, Integer.parseInt(esPort));
     }
 
-
     public SearchResponse getCaptureHistory(CaptureOption option, String sortParam) {
         BoolQueryBuilder queryBuilder = createBoolQueryBuilder(option);
-
-        SearchRequestBuilder requestBuilder = createSearchRequestBuilder()
-                .setQuery(queryBuilder)
-                .setFrom(option.getStart())
-                .setSize(option.getLimit())
-                .addSort(FaceTable.TIMESTAMP,
-                        Objects.equals(sortParam, EsSearchParam.DESC) ? SortOrder.DESC : SortOrder.ASC);
-        return requestBuilder.get();
-    }
-
-    public SearchResponse getCaptureHistory(CaptureOption option, List<String> ipcList, String sortParam) {
-        BoolQueryBuilder queryBuilder = createBoolQueryBuilder(option);
-        setDeviceIdList(queryBuilder, ipcList);
-        SearchRequestBuilder requestBuilder = createSearchRequestBuilder()
-                .setQuery(queryBuilder)
-                .setFrom(option.getStart())
-                .setSize(option.getLimit())
-                .addSort(FaceTable.TIMESTAMP,
-                        Objects.equals(sortParam, EsSearchParam.DESC) ? SortOrder.DESC : SortOrder.ASC);
-        return requestBuilder.get();
-    }
-
-    public SearchResponse getCaptureHistory(CaptureOption option, String ipc, String sortParam) {
-        BoolQueryBuilder queryBuilder = createBoolQueryBuilder(option);
-        setDeviceId(queryBuilder, ipc);
+        setDeviceIdList(queryBuilder, option);
         SearchRequestBuilder requestBuilder = createSearchRequestBuilder()
                 .setQuery(queryBuilder)
                 .setFrom(option.getStart())
@@ -79,7 +55,6 @@ public class ElasticSearchDao {
         if (option.getAttributes() != null && option.getAttributes().size() > 0) {
             setAttribute(totalBQ, option.getAttributes());
         }
-//        totalBQ.must(queryBuilder);
         // 开始时间和结束时间存在的时候的处理
         if (option.getStartTime() != null && option.getEndTime() != null &&
                 !option.getStartTime().equals("") && !option.getEndTime().equals("")) {
@@ -92,24 +67,51 @@ public class ElasticSearchDao {
         totalBQ.must(QueryBuilders.rangeQuery(FaceTable.TIMESTAMP).gte(startTime).lte(endTime));
     }
 
-    private void setDeviceIdList(BoolQueryBuilder totalBQ, List<String> deviceId) {
-        // 设备ID 的的boolQueryBuilder
-        BoolQueryBuilder devicdIdBQ = QueryBuilders.boolQuery();
-        for (String t : deviceId) {
-            devicdIdBQ.should(QueryBuilders.matchPhraseQuery(FaceTable.IPCID, t));
+    private void setDeviceIdList(BoolQueryBuilder totalBQ, CaptureOption option) {
+        BoolQueryBuilder areaBQ = QueryBuilders.boolQuery();
+        if (option.getDevices().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getDevices());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(FaceTable.IPCID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
         }
-        totalBQ.must(devicdIdBQ);
-    }
-
-    private void setDeviceId(BoolQueryBuilder totalBQ, String ipc) {
-        BoolQueryBuilder deviceIdBQ = QueryBuilders.boolQuery();
-        deviceIdBQ.should(QueryBuilders.matchPhraseQuery(FaceTable.IPCID, ipc).analyzer(EsSearchParam.STANDARD));
-        totalBQ.must(deviceIdBQ);
+        if (option.getCommunity().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(FaceTable.COMMUNITYID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
+        }
+        if (option.getRegion().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(FaceTable.REGIONID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
+        }
+        if (option.getCity().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(FaceTable.CITYID, t));
+            }
+            totalBQ.must(areaBQ);
+            return;
+        }
+        if (option.getProvince().size() > 0) {
+            List<String> ipcs = DeviceToIpcs.getIpcs(option.getCommunity());
+            for (String t : ipcs) {
+                areaBQ.should(QueryBuilders.matchPhraseQuery(FaceTable.PROVINCEID, t));
+            }
+        }
+        totalBQ.must(areaBQ);
     }
 
     private void setAttribute(BoolQueryBuilder totalBQ, List <Attribute> attributes) {
         // 筛选行人属性
-//        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
         for (Attribute attribute : attributes) {
             String identify = attribute.getIdentify();
             List <AttributeValue> attributeValues = attribute.getValues();

@@ -1,7 +1,7 @@
-package com.hzgc.cloud.dynperson.util;
+package com.hzgc.common.service.search.util;
 
 
-import com.hzgc.cloud.dynperson.bean.Device;
+import com.hzgc.common.service.search.bean.Device;
 
 import java.util.ArrayList;
 import java.util.HashMap;

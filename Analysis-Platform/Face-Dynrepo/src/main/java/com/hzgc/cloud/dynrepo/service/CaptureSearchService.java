@@ -1,5 +1,6 @@
 package com.hzgc.cloud.dynrepo.service;
 
+import com.hzgc.common.service.search.util.DeviceToIpcs;
 import com.hzgc.common.util.json.JacksonUtil;
 import com.hzgc.compare.CompareParam;
 import com.hzgc.compare.Feature;
@@ -42,8 +43,8 @@ public class CaptureSearchService {
     public SearchResult searchPicture(SearchOption option, String searchId) throws SQLException {
         SearchResult searchResult;
         SearchResult retrunResult = new SearchResult();
-        if (option.getDeviceIpcs() != null && option.getDeviceIpcs().size() > 0) {
-            retrunResult.setDeivceCount(option.getDeviceIpcs().size());
+        if (option.getDevices() != null && option.getDevices().size() > 0) {
+            retrunResult.setDeivceCount(option.getDevices().size());
         }
         ResultSet resultSet;
         long start = System.currentTimeMillis();
@@ -103,14 +104,16 @@ public class CaptureSearchService {
         //组合参数
         CompareParam param = new CompareParam(startDate, endDate, features, sim, 20, isTheSame);
         param.setSort(option.getSort());
-        List<String> ipcIds = new ArrayList<>();
-        ipcIds.addAll(option.getIpcMapping().keySet());
+        List<String> ipcIds = null;
+        if (option.getDevices() != null && option.getDevices().size() > 0) {
+            ipcIds = DeviceToIpcs.getIpcs(option.getDevices());
+        }
         param.setIpcIds(ipcIds);
         SearchResult searchResult = client.compare(param, option, searchId);
 
         SearchResult retrunResult = new SearchResult();
-        if (option.getDeviceIpcs() != null && option.getDeviceIpcs().size() > 0) {
-            retrunResult.setDeivceCount(option.getDeviceIpcs().size());
+        if (ipcIds != null) {
+            retrunResult.setDeivceCount(ipcIds.size());
         }
 
         //存储搜索历史记录

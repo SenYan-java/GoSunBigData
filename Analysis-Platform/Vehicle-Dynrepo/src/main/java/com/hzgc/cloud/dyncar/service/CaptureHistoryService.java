@@ -7,12 +7,10 @@ import com.hzgc.common.service.api.service.InnerService;
 import com.hzgc.common.service.api.service.PlatformService;
 import com.hzgc.common.service.facedynrepo.VehicleTable;
 import com.hzgc.common.util.basic.UuidUtil;
-import com.hzgc.common.util.json.JacksonUtil;
 import com.hzgc.jniface.CarAttribute;
 import com.hzgc.cloud.dyncar.bean.*;
 import com.hzgc.cloud.dyncar.dao.ElasticSearchDao;
 import com.hzgc.cloud.dyncar.dao.EsSearchParam;
-import com.hzgc.cloud.dyncar.util.DeviceToIpcs;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.SearchHit;
@@ -39,101 +37,50 @@ public class CaptureHistoryService {
     public SearchResult getCaptureHistory(CaptureOption option) {
         String sortParam = EsSearchParam.DESC;
         log.info("The current query don't needs to be grouped by ipcid");
-        return getCaptureHistory(option, DeviceToIpcs.getIpcs(option.getDevices()), sortParam);
+        return getCaptureHistory(option, sortParam);
     }
 
-    //根据ipcid进行分类
-    private SearchResult getCaptureHistory(CaptureOption option, String sortParam) {
+    private SearchResult getCaptureHistory(CaptureOption option,String sortParam) {
         SearchResult searchResult = new SearchResult();
-        List<GroupByIpc> groupByIpcs = new ArrayList<>();
-        List<String> ipcs = DeviceToIpcs.getIpcs(option.getDevices());
         SingleSearchResult singleSearchResult = new SingleSearchResult();
-        for (String ipcId : ipcs) {
-            List<CapturedPicture> capturedPictureList = new ArrayList<>();
-            SearchResponse searchResponse = elasticSearchDao.getCaptureHistory(option, ipcId, sortParam);
-            SearchHits searchHits = searchResponse.getHits();
-            GroupByIpc groupByIpc = new GroupByIpc();
-            SearchHit[] hits = searchHits.getHits();
-            CapturedPicture capturePicture;
-            if (hits.length > 0) {
-                for (SearchHit hit : hits) {
-                    capturePicture = new CapturedPicture();
-                    String sabsolutepath = (String) hit.getSource().get(VehicleTable.SABSOLUTEPATH);
-                    String babsolutepath = (String) hit.getSource().get(VehicleTable.BABSOLUTEPATH);
-                    String ipc = (String) hit.getSource().get(VehicleTable.IPCID);
-                    String timestamp = (String) hit.getSource().get(VehicleTable.TIMESTAMP);
-                    String hostname = (String) hit.getSource().get(VehicleTable.HOSTNAME);
-//                    Map<String, String> ftpIpMapping = ftpRegisterClient.getFtpIpMapping();
-//                    String ip = ftpIpMapping.get(hostname);
-                    //参数封装
-                    CarAttribute carAttribute = carDataPackage(hit);
-                    capturePicture.setCarAttribute(carAttribute);
-//                    capturePicture.setSabsolutepath(ConverFtpurl.toHttpPath(ip, ftpPort, sabsolutepath));
-//                    capturePicture.setBabsolutepath(ConverFtpurl.toHttpPath(ip, ftpPort, babsolutepath));
-                    capturePicture.setBabsolutepath(babsolutepath);
-                    capturePicture.setSabsolutepath(sabsolutepath);
-                    capturePicture.setDeviceId(ipc);
-                    capturePicture.setDeviceName(option.getIpcMapping().get(ipc).getDeviceName());
-                    capturePicture.setTimestamp(timestamp);
-                    if (ipcId.equals(ipc)) {
-                        capturedPictureList.add(capturePicture);
-                    }
-                }
-                groupByIpc.setPictures(capturedPictureList);
-                groupByIpc.setDeviceId(ipcId);
-                groupByIpc.setTotal(capturedPictureList.size());
-                groupByIpc.setDeviceName(option.getIpcMapping().get(ipcId).getDeviceName());
-                groupByIpcs.add(groupByIpc);
-                singleSearchResult.setTotal(groupByIpcs.size());
-            }
-        }
-        singleSearchResult.setDevicePictures(groupByIpcs);
-        searchResult.setSingleSearchResult(singleSearchResult);
-        searchResult.setSearchId(UuidUtil.getUuid());
-        log.info("Capture history results:" + JacksonUtil.toJson(searchResult));
-        return searchResult;
-    }
-
-    //默认查询，不进行设别分类
-    private SearchResult getDefaultCaptureHistory(CaptureOption option, String sortParam) {
+        List<CapturedPicture> captureList = new ArrayList<>();
         SearchResponse searchResponse = elasticSearchDao.getCaptureHistory(option, sortParam);
         SearchHits searchHits = searchResponse.getHits();
         SearchHit[] hits = searchHits.getHits();
-        SearchResult searchResult = new SearchResult();
-        SingleSearchResult singleSearchResult = new SingleSearchResult();
-        List<CapturedPicture> pictures = new ArrayList<>();
         CapturedPicture capturePicture;
         if (hits.length > 0) {
             for (SearchHit hit : hits) {
                 capturePicture = new CapturedPicture();
                 String sabsolutepath = (String) hit.getSource().get(VehicleTable.SABSOLUTEPATH);
                 String babsolutepath = (String) hit.getSource().get(VehicleTable.BABSOLUTEPATH);
-                String ipcid = (String) hit.getSource().get(VehicleTable.IPCID);
+                String ipc = (String) hit.getSource().get(VehicleTable.IPCID);
                 String timestamp = (String) hit.getSource().get(VehicleTable.TIMESTAMP);
                 String hostname = (String) hit.getSource().get(VehicleTable.HOSTNAME);
-//                Map<String, String> ftpIpMapping = ftpRegisterClient.getFtpIpMapping();
-//                String ip = ftpIpMapping.get(hostname);
+                UrlInfo urlInfo = innerService.hostName2Ip(hostname);
+                capturePicture.setSabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), sabsolutepath));
+                capturePicture.setBabsolutepath(CollectUrlUtil.toHttpPath(urlInfo.getIp(), urlInfo.getPort(), babsolutepath));
                 //参数封装
                 CarAttribute carAttribute = carDataPackage(hit);
                 capturePicture.setCarAttribute(carAttribute);
-//                capturePicture.setSabsolutepath(ConverFtpurl.toHttpPath(ip, ftpPort, sabsolutepath));
-//                capturePicture.setBabsolutepath(ConverFtpurl.toHttpPath(ip, ftpPort, babsolutepath));
-                capturePicture.setDeviceId(ipcid);
-                capturePicture.setDeviceName(option.getIpcMapping().get(ipcid).getDeviceName());
+                capturePicture.setDeviceId(ipc);
                 capturePicture.setTimestamp(timestamp);
-                pictures.add(capturePicture);
+                capturePicture.setDeviceId(ipc);
+                CameraQueryDTO cameraQueryDTO = getLocation(ipc);
+                capturePicture.setDeviceName(cameraQueryDTO.getCameraName());
+                capturePicture.setLocation(cameraQueryDTO.getRegion() + cameraQueryDTO.getCommunity());
+                captureList.add(capturePicture);
             }
         }
+        singleSearchResult.setDeviceTotal(option.getDevices().size());
+        singleSearchResult.setTotal((int) searchHits.getTotalHits());
+        singleSearchResult.setPictures(captureList);
         singleSearchResult.setSearchId(UuidUtil.getUuid());
-        singleSearchResult.setPictures(pictures);
-        singleSearchResult.setTotal(pictures.size());
         searchResult.setSingleSearchResult(singleSearchResult);
-        searchResult.setSearchId(UuidUtil.getUuid());
         return searchResult;
     }
 
     //多个ipcid查询
-    private SearchResult getCaptureHistory(CaptureOption option, List<String> deviceIds, String sortParam) {
+/*    private SearchResult getCaptureHistory(CaptureOption option, List<String> deviceIds, String sortParam) {
         SearchResult searchResult = new SearchResult();
         SingleSearchResult singleSearchResult = new SingleSearchResult();
         List<CapturedPicture> captureList = new ArrayList<>();
@@ -169,15 +116,14 @@ public class CaptureHistoryService {
         singleSearchResult.setSearchId(UuidUtil.getUuid());
         searchResult.setSingleSearchResult(singleSearchResult);
         return searchResult;
-    }
+    }*/
 
-    private String getLocation(String ipc) {
+    private CameraQueryDTO getLocation(String ipc) {
         //查询相机位置
         ArrayList<String> list = new ArrayList<>();
         list.add(ipc);
         Map<String, CameraQueryDTO> cameraInfoByBatchIpc = platformService.getCameraInfoByBatchIpc(list);
-        CameraQueryDTO cameraQueryDTO = cameraInfoByBatchIpc.get(ipc);
-        return cameraQueryDTO.getRegion() + cameraQueryDTO.getCommunity();
+        return cameraInfoByBatchIpc.get(ipc);
     }
 
     //数据封装
